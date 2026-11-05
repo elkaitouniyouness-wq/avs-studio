@@ -1,0 +1,48 @@
+# Développement / test local : docker compose up --build  (http://localhost:3000)
+# Production avec HTTPS : docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: avs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-avs}   # doit correspondre à DATABASE_URL dans .env
+      POSTGRES_DB: avs
+    volumes: [pgdata:/var/lib/postgresql/data]
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on: [db, redis]
+    volumes: [media:/data/media]
+    ports: ["127.0.0.1:8000:8000"]
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    command: rq worker avs --url redis://redis:6379/0
+    env_file: .env
+    depends_on: [db, redis]
+    volumes: [media:/data/media]
+  scheduler:
+    build: ./backend
+    restart: unless-stopped
+    command: python -m app.scheduler
+    env_file: .env
+    depends_on: [db, redis]
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["127.0.0.1:3000:3000"]
+volumes:
+  pgdata:
+  redisdata:
+  media:

@@ -1,0 +1,18 @@
+# Ajoute HTTPS automatique (Let's Encrypt) : requis pour l'installation PWA et l'OAuth Google hors localhost.
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?définissez DOMAIN=studio.votredomaine.com dans .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [api, web]
+  api:
+    ports: !reset []
+  web:
+    ports: !reset []
+volumes:
+  caddy_data:
